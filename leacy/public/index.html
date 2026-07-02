@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>样品标签系统</title>
+    <link rel="stylesheet" href="/styles.css?v=20260627-today-records" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>样品标签系统</h1>
+        <p id="pageSubtitle">默认进入样品库查询，游客无需账号，只能查看和检索。</p>
+      </div>
+      <div class="top-actions">
+        <nav class="tabs" aria-label="页面切换">
+          <a href="#library" data-view-link="library">样品库查询</a>
+          <a href="#entry" data-view-link="entry">录入打印</a>
+          <a href="#config" data-view-link="config" data-admin-only hidden>配置</a>
+        </nav>
+        <div class="auth-tools">
+          <span id="currentUser">游客查询</span>
+          <button type="button" id="logoutButton" class="secondary" hidden>退出</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section id="library" class="panel view-section" data-view="library">
+        <div class="panel-title">
+          <div>
+            <h2>样品库查询</h2>
+            <p>按样品编号、版号、客户名、店铺、店铺负责人或号码检索，只能查看。</p>
+          </div>
+        </div>
+
+        <div class="searchbar">
+          <input id="searchInput" placeholder="输入版号、客户名、店铺、样品编号..." autofocus />
+          <button id="searchButton" type="button">检索</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>样品编号</th>
+                <th>图片</th>
+                <th>版号</th>
+                <th>客户名</th>
+                <th>店铺</th>
+                <th>店铺负责人</th>
+                <th>号码</th>
+                <th>日期</th>
+                <th>备注</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody id="libraryRows"></tbody>
+          </table>
+        </div>
+        <div class="pagination" aria-label="样品库分页">
+          <span id="libraryPageSummary" class="pagination-summary">共 0 条</span>
+          <div class="pagination-controls">
+            <button id="libraryPrevPage" type="button" class="secondary">上一页</button>
+            <strong id="libraryPageLabel">第 1 / 1 页</strong>
+            <button id="libraryNextPage" type="button" class="secondary">下一页</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="entry" class="panel entry-panel view-section" data-view="entry">
+        <div class="panel-title">
+          <div>
+            <h2>录入打印</h2>
+            <p>保存后自动生成编号并打印热敏标签；打错的编号可作废，下次顺延使用。</p>
+          </div>
+          <div class="entry-title-tools">
+            <div class="envelope-toggle" aria-label="信封类型">
+              <label>
+                <input type="radio" name="envelopeType" value="small" checked />
+                <span>小信封</span>
+              </label>
+              <label>
+                <input type="radio" name="envelopeType" value="large" />
+                <span>大信封</span>
+              </label>
+              <label>
+                <input type="radio" name="envelopeType" value="none" />
+                <span>无信封</span>
+              </label>
+            </div>
+            <div class="next-number">
+              <span>下一个编号</span>
+              <strong id="nextNumber">----</strong>
+            </div>
+          </div>
+        </div>
+
+        <form id="sampleForm" class="form-grid">
+          <label>
+            <span>版号</span>
+            <input id="plateNumber" required placeholder="例如：88123456" />
+          </label>
+          <label>
+            <span>客户名</span>
+            <input id="customerName" required placeholder="例如：XX公司" />
+          </label>
+          <label>
+            <span>店铺</span>
+            <input id="storeName" list="storeList" placeholder="选择或输入店铺，已绑定店铺会自动带出负责人" />
+            <datalist id="storeList"></datalist>
+          </label>
+          <label>
+            <span>店铺负责人</span>
+            <select id="ownerName" required>
+              <option value="">请选择店铺负责人</option>
+              <option value="__add__">新增店铺负责人...</option>
+            </select>
+          </label>
+          <label>
+            <span>号码</span>
+            <input id="ownerPhone" required readonly placeholder="选择店铺负责人后自动带出" />
+          </label>
+          <label class="full">
+            <span>备注</span>
+            <input id="note" placeholder="可选，例如：专色 / 材质 / 急单" />
+          </label>
+          <div class="full image-field">
+            <label>
+              <span>样品图片</span>
+              <input id="sampleImage" type="file" accept="image/*" multiple />
+            </label>
+            <div id="imagePreview" class="image-preview muted">未选择图片</div>
+            <button type="button" id="pasteImage" class="secondary">粘贴图片</button>
+            <button type="button" id="clearImage" class="secondary">清除图片</button>
+          </div>
+          <div class="full print-settings">
+            <label>
+              <span>纸宽 mm</span>
+              <input id="printWidth" type="number" min="20" max="200" step="0.1" inputmode="decimal" />
+            </label>
+            <label>
+              <span>纸高 mm</span>
+              <input id="printHeight" type="number" min="15" max="150" step="0.1" inputmode="decimal" />
+            </label>
+            <label>
+              <span>内容倍率</span>
+              <input id="printScale" type="number" min="1" max="2.5" step="0.1" inputmode="decimal" />
+            </label>
+            <button type="button" id="savePrintSize" class="secondary">保存规格</button>
+            <button type="button" id="resetPrintSize" class="secondary">默认 60x40</button>
+            <span id="printSizeSummary" class="print-size-summary"></span>
+          </div>
+          <div class="actions full">
+            <button type="submit">保存并打印</button>
+            <button type="button" id="saveOnly" class="secondary">保存</button>
+            <button type="button" id="clearForm" class="secondary">清空</button>
+          </div>
+        </form>
+
+        <div class="subsection-title">
+          <div>
+            <h3>排版端记录</h3>
+            <p>补打标签、作废打错编号，也可以导出备份。</p>
+          </div>
+          <div class="backup-actions">
+            <div class="record-filters">
+              <label>
+                <span>登记日期</span>
+                <input id="adminDate" type="date" />
+              </label>
+              <button type="button" id="clearAdminDate" class="secondary">今天</button>
+            </div>
+            <button type="button" id="exportBackup" class="secondary">导出备份</button>
+            <button type="button" id="importBackup" class="secondary" data-admin-only>导入备份</button>
+            <button type="button" id="batchPrint" class="secondary" disabled>批量补打</button>
+            <span id="batchPrintSummary" class="batch-print-summary">未选择</span>
+            <input id="backupFile" type="file" accept="application/json,.json" hidden />
+            <input id="recordImageFile" type="file" accept="image/*" multiple hidden />
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="select-column"><input id="selectAllPrint" type="checkbox" aria-label="全选补打记录" /></th>
+                <th>样品编号</th>
+                <th>图片</th>
+                <th>版号</th>
+                <th>客户名</th>
+                <th>店铺</th>
+                <th>店铺负责人</th>
+                <th>号码</th>
+                <th>日期</th>
+                <th>备注</th>
+                <th>状态</th>
+                <th>登记人</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="adminRows"></tbody>
+          </table>
+        </div>
+
+      </section>
+
+      <section id="config" class="panel config-panel view-section" data-view="config" data-admin-only hidden>
+        <div class="panel-title">
+          <div>
+            <h2>配置</h2>
+            <p>管理员可以维护账号、权限和密码。</p>
+          </div>
+        </div>
+
+        <section class="account-section">
+          <div class="subsection-title">
+            <div>
+              <h3>账号管理</h3>
+              <p>管理员可以新增账号、停用账号、重置密码；游客无需账号即可查询。</p>
+            </div>
+          </div>
+          <form id="accountForm" class="account-form">
+            <label>
+              <span>账号</span>
+              <input id="accountUsername" autocomplete="off" />
+            </label>
+            <label>
+              <span>姓名</span>
+              <input id="accountDisplayName" autocomplete="off" />
+            </label>
+            <label>
+              <span>初始密码</span>
+              <input id="accountPassword" type="password" autocomplete="new-password" />
+            </label>
+            <label>
+              <span>权限</span>
+              <select id="accountRole">
+                <option value="editor">编辑账号</option>
+                <option value="admin">管理员</option>
+              </select>
+            </label>
+            <button type="submit">新增账号</button>
+          </form>
+          <div class="table-wrap account-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>账号</th>
+                  <th>姓名</th>
+                  <th>权限</th>
+                  <th>状态</th>
+                  <th>重置密码</th>
+                  <th>创建日期</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="userRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <section id="printArea" aria-hidden="true">
+      <article class="label">
+        <div class="label-number" id="printSampleNumber">0000</div>
+        <div class="label-details">
+          <div class="label-line"><b>版号：</b><span id="printPlateNumber"></span></div>
+          <div class="label-line"><b>客户：</b><span id="printCustomerName"></span></div>
+          <div class="label-line"><b>店铺：</b><span id="printStoreName"></span></div>
+          <div class="label-line"><b>负责人：</b><span id="printOwnerName"></span></div>
+          <div class="label-line"><b>号码：</b><span id="printOwnerPhone"></span></div>
+          <div class="label-line"><b>日期：</b><span id="printCreatedAt"></span></div>
+        </div>
+      </article>
+    </section>
+
+    <div id="passwordModal" class="modal-backdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="passwordTitle">
+        <h2 id="passwordTitle">账号登录</h2>
+        <p>请输入账号和密码进入录入打印页面。</p>
+        <label>
+          <span>账号</span>
+          <input id="loginUsername" autocomplete="username" />
+        </label>
+        <label>
+          <span>密码</span>
+          <input id="entryPassword" type="password" autocomplete="current-password" />
+        </label>
+        <div class="modal-actions">
+          <button type="button" id="cancelPassword" class="secondary">取消</button>
+          <button type="button" id="confirmPassword">进入</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="imageModal" class="modal-backdrop" hidden>
+      <div class="modal image-modal" role="dialog" aria-modal="true" aria-labelledby="imageTitle">
+        <div class="modal-head">
+          <h2 id="imageTitle">样品图片</h2>
+          <button type="button" id="closeImageModal" class="secondary">关闭</button>
+        </div>
+        <div id="imageGallery" class="image-gallery"></div>
+      </div>
+    </div>
+
+    <div id="ownerModal" class="modal-backdrop" hidden>
+      <div class="modal owner-modal" role="dialog" aria-modal="true" aria-labelledby="ownerTitle">
+        <h2 id="ownerTitle">新增店铺负责人</h2>
+        <p>一个负责人可以绑定多个店铺。录入时选择已绑定店铺，会自动带出负责人和号码。</p>
+        <label>
+          <span>店铺负责人姓名</span>
+          <input id="newOwnerName" placeholder="例如：张三" />
+        </label>
+        <label>
+          <span>店铺负责人号码</span>
+          <input id="newOwnerPhone" placeholder="例如：13800000000" />
+        </label>
+        <label>
+          <span>绑定店铺</span>
+          <textarea id="newOwnerStores" placeholder="多个店铺用逗号或换行分隔，例如：&#10;天猫旗舰店&#10;义乌店"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" id="cancelOwner" class="secondary">取消</button>
+          <button type="button" id="saveOwner">保存</button>
+        </div>
+        <div class="owner-list-wrap">
+          <div class="owner-list-title">
+            <strong>已有店铺负责人</strong>
+            <span>删除需要管理员密码</span>
+          </div>
+          <div id="ownerRows" class="owner-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status"></div>
+    <script src="/app.js?v=20260627-today-records"></script>
+  </body>
+</html>

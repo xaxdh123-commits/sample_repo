@@ -1,0 +1,12 @@
+{
+  "name": "sample-label-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A lightweight local sample label printing and read-only lookup system.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
