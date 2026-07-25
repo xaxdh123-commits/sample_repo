@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>扫码领用</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><h1>扫码领用</h1><p>扫描样品二维码后自动领用</p></div>
+    <div class="user"><span id="userName">正在验证身份…</span><a id="currentHoldingCount" class="current-holding-count" href="./holdings.html?mine=1" title="查看我手上的样品" hidden>0</a><a class="top-link" href="./">返回样品库</a><button id="logout" class="ghost">退出</button></div>
+  </header>
+  <main class="scan-page">
+    <section class="panel scan-panel">
+      <form id="scanForm" class="scan-form">
+        <label>扫码输入<input id="scanInput" name="scan" autocomplete="off" inputmode="text" autofocus placeholder="扫描二维码或输入样品 ID"></label>
+        <button type="submit">领用</button>
+      </form>
+      <p id="scanMessage" class="muted">等待扫码</p>
+    </section>
+    <section class="panel">
+      <div class="section-head"><h2>今日领用记录</h2><button id="refreshRecords" type="button" class="ghost">刷新</button></div>
+      <div class="table-wrap">
+        <table class="scan-record-table">
+          <thead><tr><th>时间</th><th>结果</th><th>样品号</th><th>客户 / 店铺</th><th>状态</th><th>内容</th></tr></thead>
+          <tbody id="scanRecords"><tr><td colspan="6" class="empty">暂无领用记录</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <div id="toast" class="toast"></div>
+  <script src="./scan-claim.js"></script>
+</body>
+</html>

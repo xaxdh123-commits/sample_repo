@@ -1,0 +1,22 @@
+[Unit]
+Description=Sample Management System
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/sample_repo/sample-system
+EnvironmentFile=/opt/sample_repo/sample-system/.env
+ExecStart=/usr/bin/node /opt/sample_repo/sample-system/src/server.js
+Restart=on-failure
+RestartSec=3
+User=sample-system
+Group=sample-system
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/sample_repo/sample-system/uploads
+
+[Install]
+WantedBy=multi-user.target

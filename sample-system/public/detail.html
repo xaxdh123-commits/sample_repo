@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>样品详情</title><link rel="stylesheet" href="./styles.css"></head>
+<body>
+  <header class="topbar"><div><h1>样品详情</h1><p id="detailSubtitle">正在加载…</p></div><div class="user"><span id="userName"></span><a id="currentHoldingCount" class="current-holding-count" href="./holdings.html?mine=1" title="查看我手上的样品" hidden>0</a><a class="top-link" href="./">返回样品库</a></div></header>
+  <main class="detail-page">
+    <section id="detailSearchPanel" class="panel detail-search-panel" hidden>
+      <form id="detailSearchForm" class="detail-search-form">
+        <label>样品查询<input id="detailSearchInput" name="q" autocomplete="off" placeholder="样品 ID、样品号、订单号、版号、客户、店铺"></label>
+        <button type="submit">查询</button>
+      </form>
+      <p id="detailSearchMessage" class="muted"></p>
+    </section>
+    <section class="panel">
+      <div id="sampleTabs" class="detail-tabs" hidden></div>
+      <div class="section-head"><h2 id="detailTitle">样品详情</h2><span id="detailStatus"></span></div>
+      <div id="detailContent"></div>
+      <div id="detailImages" class="detail-images"></div>
+    </section>
+    <section class="panel"><h2>操作记录</h2><div id="detailTimeline" class="timeline"></div></section>
+    <div class="claim-bar"><span id="autoClaimMessage"></span><button id="claimAndReturn" type="button">领用</button></div>
+  </main>
+  <div id="toast" class="toast"></div>
+  <script src="./detail.js"></script>
+</body>
+</html>

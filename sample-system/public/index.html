@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>样品管理系统</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><div class="title-row"><h1>样品管理系统</h1><button id="openGuide" type="button" class="guide-link">操作规范</button></div><p>样品录入、打印、领用、寄出与归档</p></div>
+    <div class="user"><span id="userName">正在验证身份…</span><a id="currentHoldingCount" class="current-holding-count" href="./holdings.html?mine=1" title="查看我手上的样品" hidden>0</a><a class="top-link" href="./scan-claim.html">扫码领用</a><a class="top-link" href="./holdings.html">人员样品统计</a><button id="logout" class="ghost">退出</button></div>
+  </header>
+
+  <main>
+    <section class="panel editor-only collapsed" id="createPanel">
+      <div class="section-head"><div><h2>录入样品</h2><div class="creator-meta">创建人：<b id="creatorName"></b>　手机号：<b id="creatorPhone"></b></div></div><button id="toggleForm" type="button" class="ghost">展开</button></div>
+      <form id="sampleForm" class="form-grid" hidden>
+        <input id="sampleType" name="sampleType" type="hidden" value="label">
+        <div class="wide sample-tabs"><button type="button" class="sample-tab active" data-sample-type="label">标签样品</button><button type="button" class="sample-tab" data-sample-type="packaging">包装样品</button></div>
+        <div class="wide next-code next-code-prominent"><span>预生成编号</span><strong id="nextSampleCode">加载中…</strong></div>
+        <div class="wide compact-grid common-fields">
+          <label>版号<input name="plateNumber" placeholder="订单号和版号至少填一项"></label>
+          <label><span id="customerFieldLabel">客户名</span><input name="customerName" required></label>
+          <label>店铺<input id="shopSearch" list="shopSuggestions" autocomplete="off" required placeholder="输入店铺名称或编码联想"><datalist id="shopSuggestions"></datalist><input id="erpShopId" name="erpShopId" type="hidden"></label>
+          <label>店铺管理员<input id="ownerName" name="ownerName" readonly placeholder="选择店铺后自动带出"></label>
+          <label>管理员信息<input id="ownerPhone" name="ownerPhone" readonly placeholder="管理员 ID / 店铺联系电话"></label>
+          <label class="packaging-field" hidden>订单编号<input name="orderNumber"></label>
+        </div>
+        <div class="wide compact-grid label-fields">
+          <fieldset class="envelope-options"><legend>信封类型</legend><label><input type="checkbox" name="envelopeType" value="small" checked>小信封 A</label><label><input type="checkbox" name="envelopeType" value="large">大信封 B</label><label><input type="checkbox" name="envelopeType" value="none">无信封 C</label></fieldset>
+          <label>备注<input name="note" placeholder="专色 / 材质 / 急单"></label>
+        </div>
+        <fieldset class="wide option-group packaging-field" hidden><legend>样品类别（可多选）</legend>
+          <label><input type="checkbox" name="sampleCategories" value="彩盒类">彩盒类</label><label><input type="checkbox" name="sampleCategories" value="纸卡类">纸卡类</label>
+          <label><input type="checkbox" name="sampleCategories" value="十五栋印刷厂">十五栋印刷厂</label><label><input type="checkbox" name="sampleCategories" value="纸袋">纸袋</label>
+          <label><input type="checkbox" name="sampleCategories" value="色样">色样</label><label><input type="checkbox" name="sampleCategories" value="礼盒">礼盒</label>
+          <label><input type="checkbox" name="sampleCategories" value="内衬">内衬</label><label><input type="checkbox" name="sampleCategories" value="迈高礼盒厂">迈高礼盒厂</label>
+        </fieldset>
+        <fieldset class="wide option-group packaging-field" hidden><legend>改动项目</legend>
+          <label><input type="checkbox" name="contentChanged">内容改动</label><label><input type="checkbox" name="colorChanged">颜色改动</label>
+          <label><input type="checkbox" name="specificationChanged">规格改动</label><label><input type="checkbox" name="boxTypeChanged">盒型改动</label>
+        </fieldset>
+        <div class="wide compact-grid packaging-field" hidden>
+          <label>内容<input name="sampleContent"></label><label>包装规格<input name="sampleSpecification"></label><label>颜色<input name="sampleColor"></label>
+          <label>预留字段 1<input name="reservedField1"></label><label>预留字段 2<input name="reservedField2"></label><label>预留字段 3<input name="reservedField3"></label>
+          <label class="span-3">备注<input name="packagingNote"></label>
+        </div>
+        <div class="wide image-field" id="imageDropZone"><label>样品图片<input id="sampleImages" type="file" accept="image/png,image/jpeg,image/webp" multiple></label><div id="imagePreview" class="muted">选择、拖入或粘贴图片（最多 12 张）</div><button type="button" id="pasteImages" class="ghost">粘贴图片</button><button type="button" id="clearImages" class="ghost">清除图片</button></div>
+        <div class="wide print-settings label-fields"><label>纸宽 mm<input id="printWidth" type="number" min="20" max="200" step="0.1" value="60"></label><label>纸高 mm<input id="printHeight" type="number" min="15" max="150" step="0.1" value="40"></label><label>内容倍率<input id="printScale" type="number" min="1" max="2.5" step="0.1" value="1"></label><button type="button" id="savePrintSize" class="ghost">保存规格</button></div>
+        <div class="wide actions"><button type="submit">保存草稿</button><button type="button" id="saveAndPrint">直接打印</button><button type="button" id="clearForm" class="ghost">清空</button><span id="createMessage"></span></div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="section-head"><div class="library-tabs"><button type="button" class="library-tab active" data-list-mode="library" data-list-sample-type="label">标签样品库 <span id="labelLibraryCount">0</span></button><button type="button" class="library-tab" data-list-mode="library" data-list-sample-type="packaging">包装样品库 <span id="packagingLibraryCount">0</span></button><button type="button" class="library-tab" data-list-mode="draft">草稿 <span id="draftCount">0</span></button></div><button id="refresh" class="ghost">刷新</button></div>
+      <div class="filters">
+        <input id="query" placeholder="编号、订单号、版号、客户、店铺、负责人、号码">
+        <input id="createdDate" type="date" title="创建日期">
+        <select id="status"><option value="">全部状态</option><option value="printed">打印</option><option value="claimed">领用</option><option value="sent">寄出</option><option value="completed">入库</option><option value="void">作废</option></select>
+        <button id="search">查询</button>
+      </div>
+      <div class="table-wrap"><table class="sample-table"><thead><tr><th class="sticky-col code-col">编号</th><th class="sticky-col image-col">图片</th><th>版号 / 客户</th><th>店铺 / 负责人</th><th>类型</th><th>状态</th><th>最后更新</th><th class="sticky-action">操作</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="pager"><button id="first" class="ghost">首页</button><button id="prev" class="ghost">上一页</button><span id="pageInfo"></span><button id="next" class="ghost">下一页</button><button id="last" class="ghost">末页</button><label>每页<select id="pageSize"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select></label><label>跳至<input id="jumpPage" type="number" min="1" value="1">页</label><button id="jump" class="ghost">跳转</button></div>
+    </section>
+
+  </main>
+
+  <dialog id="detailDialog"><div class="dialog-head"><h2 id="detailTitle">样品详情</h2><button id="closeDetail" class="ghost">关闭</button></div><div id="detailBody"></div><h3>操作记录</h3><div id="timeline" class="timeline"></div></dialog>
+  <dialog id="imageDialog"><div class="dialog-head"><h2>查看图片</h2><button id="closeImage" class="ghost">关闭</button></div><img id="largeImage" class="large-image" alt="样品图片"></dialog>
+  <dialog id="guideDialog" class="guide-dialog">
+    <div class="dialog-head"><h2>样品库操作规范</h2><button id="closeGuide" class="ghost">关闭</button></div>
+    <div class="guide-content">
+      <section>
+        <h3>一、基本流程</h3>
+        <ol class="guide-steps">
+          <li><b>进入系统：</b>通过统一登录进入样品库，系统会自动识别当前操作人。</li>
+          <li><b>录入样品：</b>点击“录入样品”区域展开表单，选择“标签样品”或“包装样品”。</li>
+          <li><b>保存或打印：</b>“保存草稿”先暂存；“直接打印”会创建样品并记录打印操作。</li>
+          <li><b>扫码领用：</b>样品标签上的二维码进入详情页，可直接领用；样品可以被后续人员再次领用并变更归属。</li>
+          <li><b>寄出/入库：</b>样品流转完成后按实际情况点击“寄出”或“入库”。</li>
+        </ol>
+      </section>
+      <section>
+        <h3>二、录入规范</h3>
+        <dl class="guide-dl">
+          <dt>编号</dt><dd>页面顶部会显示预生成编号。编号由系统自动生成，不要手工改动。</dd>
+          <dt>客户名</dt><dd>客户名和客户 ID 视作同一个字段，按业务可识别名称填写。</dd>
+          <dt>店铺</dt><dd>输入店铺名称或编码会出现联想项。选择店铺后会自动带出店铺管理员及联系方式。</dd>
+          <dt>创建人</dt><dd>创建人姓名和手机号由统一登录信息自动带出，不需要手填。</dd>
+          <dt>图片</dt><dd>支持选择、拖入、粘贴上传。建议上传清晰图片，便于后续查找和确认。</dd>
+        </dl>
+      </section>
+      <section>
+        <h3>三、样品类型</h3>
+        <div class="guide-grid">
+          <div><h4>标签样品</h4><p>适用于常规标签类样品。重点填写版号、客户、店铺、信封类型、备注、图片和打印规格。</p></div>
+          <div><h4>包装样品</h4><p>适用于彩盒、纸卡、纸袋、礼盒、内衬、色样等包装类样品。按纸质表单填写内容、规格、颜色、订单编号和改动项目。</p></div>
+        </div>
+      </section>
+      <section>
+        <h3>四、状态说明</h3>
+        <table class="guide-table">
+          <thead><tr><th>状态</th><th>含义</th><th>使用场景</th></tr></thead>
+          <tbody>
+            <tr><td>草稿</td><td>已录入但未正式流转</td><td>信息未确认或暂不打印时使用。</td></tr>
+            <tr><td>打印</td><td>已打印样品标签</td><td>样品已生成纸质标识，等待领用或寄出。</td></tr>
+            <tr><td>领用</td><td>当前有人持有样品</td><td>扫码或手动点击领用。再次领用会变更到新领用人。</td></tr>
+            <tr><td>寄出</td><td>样品已寄给客户或外部对象</td><td>寄出后点击，便于统计和追踪。</td></tr>
+            <tr><td>入库</td><td>样品已归档入库</td><td>样品回收或处理完成后使用。</td></tr>
+            <tr><td>作废</td><td>样品不再使用</td><td>录错、重复、无效样品使用。</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h3>五、查询与统计</h3>
+        <ul class="guide-list">
+          <li>样品库默认按当天日期查询，可手动调整日期。</li>
+          <li>“样品库”只展示非草稿数据；“草稿”单独展示并显示数量。</li>
+          <li>支持按编号、版号、客户、店铺、负责人、手机号搜索。</li>
+          <li>右上角“人员样品统计”展示当前各人员手上持有的样品数量；没有样品的人员不会展示。</li>
+          <li>人员统计以样品最后更新人为准，领用后会更新归属。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>六、注意事项</h3>
+        <ul class="guide-list">
+          <li>店铺信息实时从 ERP 获取，不做本地缓存；联想为空时先确认登录状态和店铺关键字。</li>
+          <li>打印前确认编号、客户、店铺和管理员信息，避免标签贴错。</li>
+          <li>二维码用于进入详情页和领用，打印后不要遮挡或裁切二维码。</li>
+          <li>发现录入错误时，优先在详情/列表中修改；无效数据再作废。</li>
+          <li>图片建议控制大小，上传失败时可压缩后重试。</li>
+        </ul>
+      </section>
+    </div>
+  </dialog>
+  <div id="toast" class="toast"></div>
+  <div id="printArea"></div>
+  <script src="./app.js"></script>
+</body>
+</html>

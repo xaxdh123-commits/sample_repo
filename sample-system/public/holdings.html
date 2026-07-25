@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>人员样品统计</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><h1>人员样品统计</h1><p>按样品最后更新人统计当前持有数量</p></div>
+    <div class="user"><span id="userName">正在验证身份…</span><a id="currentHoldingCount" class="current-holding-count" href="./holdings.html?mine=1" title="查看我手上的样品" hidden>0</a><a class="top-link" href="./">返回样品库</a><button id="logout" class="ghost">退出</button></div>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="section-head"><div><h2>当前人员</h2><span class="muted">不含已入库和已作废样品</span></div><button id="refresh" class="ghost">刷新</button></div>
+      <div id="holdingGrid" class="holding-grid"><p class="muted">正在加载…</p></div>
+    </section>
+  </main>
+  <dialog id="holdingSamplesDialog" class="holding-samples-dialog">
+    <div class="dialog-head"><h2 id="holdingSamplesTitle">样品列表</h2><button id="closeHoldingSamples" class="ghost">关闭</button></div>
+    <div class="table-wrap">
+      <table class="holding-samples-table">
+        <thead><tr><th>编号</th><th>版号 / 客户</th><th>订单号</th><th>店铺</th><th>状态</th><th>最后更新</th><th class="sticky-action">操作</th></tr></thead>
+        <tbody id="holdingSamplesRows"></tbody>
+      </table>
+    </div>
+  </dialog>
+  <div id="toast" class="toast"></div>
+  <script src="./holdings.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>样品库操作规范</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="title-row"><h1>样品库操作规范</h1><a class="guide-link" href="./index.html">返回样品库</a></div>
+      <p>录入、打印、领用、寄出、入库与统计说明</p>
+    </div>
+  </header>
+
+  <main class="guide-page">
+    <section class="panel">
+      <h2>一、基本流程</h2>
+      <ol class="guide-steps">
+        <li><b>进入系统：</b>通过统一登录进入样品库，系统会自动识别当前操作人。</li>
+        <li><b>录入样品：</b>点击“录入样品”区域展开表单，选择“标签样品”或“包装样品”。</li>
+        <li><b>保存或打印：</b>“保存草稿”先暂存；“直接打印”会创建样品并记录打印操作。</li>
+        <li><b>扫码领用：</b>样品标签上的二维码进入详情页，可直接领用；样品可以被后续人员再次领用并变更归属。</li>
+        <li><b>寄出/入库：</b>样品流转完成后按实际情况点击“寄出”或“入库”。</li>
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2>二、录入规范</h2>
+      <dl class="guide-dl">
+        <dt>编号</dt><dd>页面顶部会显示预生成编号。编号由系统自动生成，不要手工改动。</dd>
+        <dt>客户名</dt><dd>客户名和客户 ID 视作同一个字段，按业务可识别名称填写。</dd>
+        <dt>店铺</dt><dd>输入店铺名称或编码会出现联想项。选择店铺后会自动带出店铺管理员及联系方式。</dd>
+        <dt>创建人</dt><dd>创建人姓名和手机号由统一登录信息自动带出，不需要手填。</dd>
+        <dt>图片</dt><dd>支持选择、拖入、粘贴上传。建议上传清晰图片，便于后续查找和确认。</dd>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <h2>三、样品类型</h2>
+      <div class="guide-grid">
+        <div>
+          <h3>标签样品</h3>
+          <p>适用于常规标签类样品。重点填写版号、客户、店铺、信封类型、备注、图片和打印规格。</p>
+          <p>信封类型为复选形式，默认小信封 A，按实际随样品携带情况勾选。</p>
+        </div>
+        <div>
+          <h3>包装样品</h3>
+          <p>适用于彩盒、纸卡、纸袋、礼盒、内衬、色样等包装类样品。</p>
+          <p>按纸质表单填写内容、规格、颜色、订单编号、改动项目和预留字段。打印样式会按包装样品格式输出。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>四、状态说明</h2>
+      <table class="guide-table">
+        <thead><tr><th>状态</th><th>含义</th><th>使用场景</th></tr></thead>
+        <tbody>
+          <tr><td>草稿</td><td>已录入但未正式流转</td><td>信息未确认或暂不打印时使用。</td></tr>
+          <tr><td>打印</td><td>已打印样品标签</td><td>样品已生成纸质标识，等待领用或寄出。</td></tr>
+          <tr><td>领用</td><td>当前有人持有样品</td><td>扫码或手动点击领用。再次领用会变更到新领用人。</td></tr>
+          <tr><td>寄出</td><td>样品已寄给客户或外部对象</td><td>寄出后点击，便于统计和追踪。</td></tr>
+          <tr><td>入库</td><td>样品已归档入库</td><td>样品回收或处理完成后使用。</td></tr>
+          <tr><td>作废</td><td>样品不再使用</td><td>录错、重复、无效样品使用。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>五、查询与统计</h2>
+      <ul class="guide-list">
+        <li>样品库默认按当天日期查询，可手动调整日期。</li>
+        <li>“样品库”只展示非草稿数据；“草稿”单独展示并显示数量。</li>
+        <li>支持按编号、版号、客户、店铺、负责人、手机号搜索。</li>
+        <li>右上角“人员样品统计”展示当前各人员手上持有的样品数量；没有样品的人员不会展示。</li>
+        <li>人员统计以样品最后更新人为准，领用后会更新归属。</li>
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2>六、注意事项</h2>
+      <ul class="guide-list">
+        <li>店铺信息实时从 ERP 获取，不做本地缓存；联想为空时先确认登录状态和店铺关键字。</li>
+        <li>打印前确认编号、客户、店铺和管理员信息，避免标签贴错。</li>
+        <li>二维码用于进入详情页和领用，打印后不要遮挡或裁切二维码。</li>
+        <li>发现录入错误时，优先在详情/列表中修改；无效数据再作废。</li>
+        <li>图片建议控制大小，上传失败时可压缩后重试。</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
