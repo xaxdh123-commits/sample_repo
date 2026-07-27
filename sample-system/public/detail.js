@@ -3,7 +3,7 @@ const apiBase = base;
 const $ = (id) => document.getElementById(id);
 const labels = { draft: "草稿", printed: "打印", claimed: "领用", sent: "寄出", completed: "入库", void: "作废" };
 const actionLabels = { create: "创建", update: "修改", status_change: "状态变更", print: "打印", reprint: "补打", image_add: "添加图片", image_delete: "删除图片", legacy_import: "历史导入" };
-let sample = null; let samples = []; let claiming = false;
+let sample = null; let samples = []; let claiming = false; let autoClaimTimer = null;
 let currentUser = null;
 
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
@@ -63,13 +63,23 @@ async function selectSample(nextSample) {
   setClaimState();
   await renderOperations();
 }
-async function claimSample() {
+function closeDetailPage() {
+  window.close();
+  setTimeout(() => {
+    if (history.length > 1) history.back();
+    else location.href = "./";
+  }, 400);
+}
+
+async function claimSample(options = {}) {
+  const closeAfterClaim = Boolean(options?.closeAfterClaim);
   if (claiming || !sample || ["sent", "completed", "void"].includes(sample.status)) return; claiming = true; $("claimAndReturn").disabled = true;
   try {
     if (sample.status === "draft") await api(`/samples/${sample.id}/print`, { method: "POST", body: "{}" });
     await api(`/samples/${sample.id}/claim`, { method: "POST", body: "{}" });
     sample.status = "claimed"; claiming = false; setClaimState(); $("detailStatus").innerHTML = `<span class="badge claimed">领用</span>`; $("autoClaimMessage").textContent = "已领用";
     const cleanUrl = new URL(location.href); cleanUrl.searchParams.delete("autoClaim"); history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+    if (closeAfterClaim) setTimeout(closeDetailPage, 250);
   } catch (error) { claiming = false; setClaimState(); toast(error.message); }
 }
 function queryFromInputs() {
@@ -109,9 +119,18 @@ async function load() {
   } else {
     await lookupByQuery(queryFromInputs(), false);
   }
-  if (params.get("autoClaim") === "true" && sample && !["sent", "completed", "void"].includes(sample.status)) { let count = 5; $("autoClaimMessage").textContent = `${count} 后自动领用`; const timer = setInterval(() => { count -= 1; if (count > 0) $("autoClaimMessage").textContent = `${count} 后自动领用`; else { clearInterval(timer); $("autoClaimMessage").textContent = "正在自动领用…"; claimSample(); } }, 200); }
+  if (params.get("autoClaim") === "true" && sample && !["sent", "completed", "void"].includes(sample.status)) { $("stayHere").hidden = false; $("autoClaimMessage").textContent = "1.5 秒后自动领用并关闭"; autoClaimTimer = setTimeout(() => { autoClaimTimer = null; $("stayHere").hidden = true; $("autoClaimMessage").textContent = "正在自动领用…"; claimSample({ closeAfterClaim: true }); }, 1500); }
 }
 $("claimAndReturn").onclick = claimSample;
+$("stayHere").onclick = () => {
+  if (autoClaimTimer) clearTimeout(autoClaimTimer);
+  autoClaimTimer = null;
+  $("stayHere").hidden = true;
+  $("autoClaimMessage").textContent = "已停留当前页";
+  const cleanUrl = new URL(location.href);
+  cleanUrl.searchParams.delete("autoClaim");
+  history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+};
 $("sampleTabs").onclick = (event) => {
   const tab = event.target.closest("[data-sample-id]");
   if (!tab) return;

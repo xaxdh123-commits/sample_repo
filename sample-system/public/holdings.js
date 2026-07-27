@@ -53,7 +53,10 @@ function formatTime(value) {
 function sampleActions(sample) {
   const send = ["printed", "claimed"].includes(sample.status) ? `<button type="button" data-sample-status="${sample.id}" data-next="sent">寄出</button>` : "";
   const voidButton = !["void", "completed"].includes(sample.status) ? `<button type="button" class="danger" data-sample-status="${sample.id}" data-next="void">作废</button>` : "";
-  return `<div class="row-actions"><a class="top-link holding-detail-link" href="./detail.html?id=${encodeURIComponent(sample.id)}">详情</a>${send}${voidButton}</div>`;
+  const options = [`<option value="">操作</option>`, `<option value="detail:${sample.id}">详情</option>`];
+  if (["printed", "claimed"].includes(sample.status)) options.push(`<option value="status:${sample.id}:sent">寄出</option>`);
+  if (!["void", "completed"].includes(sample.status)) options.push(`<option value="status:${sample.id}:void">作废</option>`);
+  return `<div class="row-actions"><a class="top-link holding-detail-link" href="./detail.html?id=${encodeURIComponent(sample.id)}">详情</a>${send}${voidButton}</div><select class="mobile-action-select" data-mobile-action>${options.join("")}</select>`;
 }
 
 async function loadHoldings() {
@@ -114,6 +117,14 @@ $("holdingSamplesRows").onclick = (event) => {
   if (!button) return;
   changeSampleStatus(button.dataset.sampleStatus, button.dataset.next).catch((error) => toast(error.message));
 };
+$("holdingSamplesRows").addEventListener("change", (event) => {
+  const select = event.target.closest("[data-mobile-action]");
+  if (!select) return;
+  const [type, id, target] = String(select.value || "").split(":");
+  select.value = "";
+  if (type === "detail" && id) location.href = `./detail.html?id=${encodeURIComponent(id)}`;
+  if (type === "status" && id && target) changeSampleStatus(id, target).catch((error) => toast(error.message));
+});
 $("currentHoldingCount").onclick = (event) => {
   event.preventDefault();
   if (currentUser) showHoldingSamples(currentUser.id, "").catch((error) => toast(error.message));

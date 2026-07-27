@@ -57,6 +57,17 @@ function nextAction(sample) {
   return `${next && next !== "printed" ? `<button data-status="${sample.id}" data-next="${next}">${labels[next]}</button>` : ""}${send}<button class="danger" data-status="${sample.id}" data-next="void">作废</button>`;
 }
 
+function mobileActionSelect(sample) {
+  const options = [`<option value="">操作</option>`, `<option value="detail:${sample.id}">详情</option>`];
+  if (state.canEdit && sample.status !== "void") options.push(`<option value="print:${sample.id}">${sample.status === "draft" ? "打印" : "补打"}</option>`);
+  if (state.canEdit && !["void", "completed"].includes(sample.status)) {
+    if (sample.nextStatus && sample.nextStatus !== "printed") options.push(`<option value="status:${sample.id}:${sample.nextStatus}">${labels[sample.nextStatus]}</option>`);
+    if (sample.status === "printed") options.push(`<option value="status:${sample.id}:sent">寄出</option>`);
+    options.push(`<option value="status:${sample.id}:void">作废</option>`);
+  }
+  return `<select class="mobile-action-select" data-mobile-action>${options.join("")}</select>`;
+}
+
 function renderSamples() {
   $("rows").innerHTML = state.samples.length ? state.samples.map((sample) => `<tr class="status-${sample.status}">
     <td class="sticky-col code-col"><strong>${escapeHtml(sample.sampleCode)}</strong></td><td class="sticky-col image-col">${imageThumb(sample)}</td>
@@ -65,12 +76,26 @@ function renderSamples() {
     <td>${sample.sampleType === "packaging" ? "包装样品" : "标签样品"}</td>
     <td><span class="badge ${sample.status}">${labels[sample.status]}</span></td>
     <td>${escapeHtml(sample.updatedByName)}<br><span class="muted">${formatTime(sample.updatedAt)}</span></td>
-    <td class="action-cell sticky-action"><div class="row-actions"><button class="ghost" data-detail="${sample.id}">详情</button>${state.canEdit && sample.status !== "void" ? `<button class="ghost" data-print="${sample.id}">${sample.status === "draft" ? "打印" : "补打"}</button>` : ""}${nextAction(sample)}</div></td>
+    <td class="action-cell sticky-action"><div class="row-actions"><button class="ghost" data-detail="${sample.id}">详情</button>${state.canEdit && sample.status !== "void" ? `<button class="ghost" data-print="${sample.id}">${sample.status === "draft" ? "打印" : "补打"}</button>` : ""}${nextAction(sample)}</div>${mobileActionSelect(sample)}</td>
   </tr>`).join("") : `<tr><td colspan="8" class="empty">没有找到样品</td></tr>`;
   state.pages = Math.max(1, Math.ceil(state.total / state.pageSize));
   $("pageInfo").textContent = `第 ${state.page} / ${state.pages} 页，共 ${state.total} 条`;
   $("jumpPage").max = state.pages; $("jumpPage").value = state.page;
   $("first").disabled = $("prev").disabled = state.page <= 1; $("next").disabled = $("last").disabled = state.page >= state.pages;
+}
+
+async function runSampleAction(value) {
+  const [type, id, target] = String(value || "").split(":");
+  if (!type || !id) return;
+  if (type === "detail") { location.href = `./detail.html?id=${encodeURIComponent(id)}`; return; }
+  if (type === "status") return changeStatus(id, target);
+  if (type === "print") {
+    const sample = state.samples.find((item) => item.id === id);
+    if (!sample) return;
+    await api(`/samples/${sample.id}/${sample.status === "draft" ? "print" : "reprint"}`, { method: "POST", body: "{}" });
+    await renderPrint(sample);
+    await loadSamples();
+  }
 }
 
 async function loadSamples() {
@@ -289,6 +314,7 @@ $("clearForm").onclick = resetSampleForm;
 $("saveAndPrint").onclick = () => submitSample(true);
 $("savePrintSize").onclick = () => { localStorage.setItem("samplePrintSettings", JSON.stringify({ width: $("printWidth").value, height: $("printHeight").value, scale: $("printScale").value })); toast("打印规格已保存"); };
 $("rows").addEventListener("click", async (event) => { try { const image = event.target.closest("[data-image]"); if (image) { $("largeImage").src = `${apiBase}/api/images/${image.dataset.image}`; return $("imageDialog").showModal(); } const detail = event.target.closest("[data-detail]"); if (detail) { location.href = `./detail.html?id=${encodeURIComponent(detail.dataset.detail)}`; return; } const status = event.target.closest("[data-status]"); if (status) return changeStatus(status.dataset.status, status.dataset.next); const print = event.target.closest("[data-print]"); if (print) { const sample = state.samples.find((s) => s.id === print.dataset.print); await api(`/samples/${sample.id}/${sample.status === "draft" ? "print" : "reprint"}`, { method: "POST", body: "{}" }); await renderPrint(sample); await loadSamples(); } } catch (e) { toast(e.message); } });
+$("rows").addEventListener("change", async (event) => { const select = event.target.closest("[data-mobile-action]"); if (!select) return; try { await runSampleAction(select.value); } catch (error) { toast(error.message); } finally { select.value = ""; } });
 $("search").onclick = () => { state.page = 1; loadSamples().catch((e) => toast(e.message)); }; $("refresh").onclick = () => loadSamples().catch((e) => toast(e.message));
 $("query").addEventListener("keydown", (e) => { if (e.key === "Enter") $("search").click(); });
 $("first").onclick = () => { state.page = 1; loadSamples(); }; $("prev").onclick = () => { state.page = Math.max(1, state.page - 1); loadSamples(); }; $("next").onclick = () => { state.page = Math.min(state.pages, state.page + 1); loadSamples(); }; $("last").onclick = () => { state.page = state.pages; loadSamples(); };
