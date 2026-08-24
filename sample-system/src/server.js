@@ -394,6 +394,25 @@ async function updateSample(req, res, user, id) {
       const value = text(body[key], max);
       if (value !== old[column]) { sets.push(`${column}=?`); params.push(value); changes[key] = { from: old[column], to: value }; }
     }
+    if ("erpShopId" in body) {
+      const erpShopId = Number(body.erpShopId);
+      const value = Number.isInteger(erpShopId) && erpShopId > 0 ? erpShopId : null;
+      if (value !== old.erp_shop_id) { sets.push("erp_shop_id=?"); params.push(value); changes.erpShopId = { from: old.erp_shop_id, to: value }; }
+    }
+    if ("erpShopCode" in body) {
+      const value = text(body.erpShopCode, 100);
+      if (value !== old.erp_shop_code) { sets.push("erp_shop_code=?"); params.push(value); changes.erpShopCode = { from: old.erp_shop_code, to: value }; }
+    }
+    if ("sampleCategories" in body) {
+      const value = JSON.stringify(categoriesValue(body.sampleCategories));
+      const oldCategories = Array.isArray(old.sample_categories) ? old.sample_categories : JSON.parse(old.sample_categories || "[]");
+      if (value !== JSON.stringify(oldCategories.map(normalizeCategory))) { sets.push("sample_categories=?"); params.push(value); changes.sampleCategories = true; }
+    }
+    for (const [key, column] of Object.entries({ contentChanged: "content_changed", colorChanged: "color_changed", specificationChanged: "specification_changed", boxTypeChanged: "box_type_changed" })) {
+      if (!(key in body)) continue;
+      const value = booleanValue(body[key]) ? 1 : 0;
+      if (value !== Number(old[column])) { sets.push(`${column}=?`); params.push(value); changes[key] = { from: Boolean(old[column]), to: Boolean(value) }; }
+    }
     if (!sets.length) return { unchanged: true };
     sets.push("updated_by_id=?", "updated_by_username=?", "updated_by_name=?", "updated_at=NOW(3)");
     params.push(...actorFields(user), id);

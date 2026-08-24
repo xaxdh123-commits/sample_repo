@@ -46,7 +46,7 @@
           <label>预留字段 1<input name="reservedField1"></label><label>预留字段 2<input name="reservedField2"></label><label>预留字段 3<input name="reservedField3"></label>
           <label class="span-3">备注<input name="packagingNote"></label>
         </div>
-        <div class="wide image-field" id="imageDropZone"><label>样品图片<input id="sampleImages" type="file" accept="image/png,image/jpeg,image/webp" multiple></label><div id="imagePreview" class="muted">选择、拖入或粘贴图片（最多 12 张）</div><button type="button" id="pasteImages" class="ghost">粘贴图片</button><button type="button" id="clearImages" class="ghost">清除图片</button></div>
+        <div class="wide image-field" id="imageDropZone"><label>样品图片<input id="sampleImages" type="file" accept="image/*" multiple></label><div id="imagePreview" class="muted">选择、拍照、拖入或粘贴图片（最多 12 张）</div><button type="button" id="pasteImages" class="ghost">粘贴图片</button><button type="button" id="clearImages" class="ghost">清除图片</button></div>
         <div class="wide print-settings label-fields"><label>纸宽 mm<input id="printWidth" type="number" min="20" max="200" step="0.1" value="60"></label><label>纸高 mm<input id="printHeight" type="number" min="15" max="150" step="0.1" value="40"></label><label>内容倍率<input id="printScale" type="number" min="1" max="2.5" step="0.1" value="1"></label><button type="button" id="savePrintSize" class="ghost">保存规格</button></div>
         <div class="wide actions"><button type="submit">保存草稿</button><button type="button" id="saveAndPrint">直接打印</button><button type="button" id="clearForm" class="ghost">清空</button><span id="createMessage"></span></div>
       </form>
@@ -58,6 +58,7 @@
         <input id="query" placeholder="编号、订单号、版号、客户、店铺、负责人、号码">
         <input id="createdDate" type="date" title="创建日期">
         <select id="status"><option value="">全部状态</option><option value="printed">打印</option><option value="claimed">领用</option><option value="sent">寄出</option><option value="completed">入库</option><option value="void">作废</option></select>
+        <button id="clearDate" type="button" class="ghost">清除日期</button>
         <button id="search">查询</button>
       </div>
       <div class="table-wrap"><table class="sample-table"><thead><tr><th class="sticky-col code-col">编号</th><th class="sticky-col image-col">图片</th><th>版号 / 客户</th><th>店铺 / 负责人</th><th>类型</th><th>状态</th><th>最后更新</th><th class="sticky-action">操作</th></tr></thead><tbody id="rows"></tbody></table></div>

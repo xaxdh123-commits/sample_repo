@@ -64,6 +64,11 @@ async function selectSample(nextSample) {
   await renderOperations();
 }
 function closeDetailPage() {
+  if (window.uni?.navigateBack) { window.uni.navigateBack({ delta: 1 }); return; }
+  if (window.wx?.miniProgram?.navigateBack) { window.wx.miniProgram.navigateBack({ delta: 1 }); return; }
+  document.addEventListener("UniAppJSBridgeReady", () => {
+    if (window.uni?.navigateBack) window.uni.navigateBack({ delta: 1 });
+  }, { once: true });
   window.close();
   setTimeout(() => {
     if (history.length > 1) history.back();
@@ -87,6 +92,9 @@ function queryFromInputs() {
 }
 function queryFromUrl(params) {
   return (params.get("q") || params.get("keyword") || params.get("sampleCode") || params.get("code") || params.get("sampleId") || params.get("orderNumber") || params.get("order") || params.get("plateNumber") || params.get("plate") || "").trim();
+}
+function afterRender() {
+  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 }
 async function lookupByQuery(q, replaceUrl) {
   if (!q) {
@@ -119,7 +127,7 @@ async function load() {
   } else {
     await lookupByQuery(queryFromInputs(), false);
   }
-  if (params.get("autoClaim") === "true" && sample && !["sent", "completed", "void"].includes(sample.status)) { $("stayHere").hidden = false; $("autoClaimMessage").textContent = "1.5 秒后自动领用并关闭"; autoClaimTimer = setTimeout(() => { autoClaimTimer = null; $("stayHere").hidden = true; $("autoClaimMessage").textContent = "正在自动领用…"; claimSample({ closeAfterClaim: true }); }, 1500); }
+  if (params.get("autoClaim") === "true" && sample && !["sent", "completed", "void"].includes(sample.status)) { await afterRender(); $("stayHere").hidden = false; $("autoClaimMessage").textContent = "1.5 秒后自动领用并关闭"; autoClaimTimer = setTimeout(() => { autoClaimTimer = null; $("stayHere").hidden = true; $("autoClaimMessage").textContent = "正在自动领用…"; claimSample({ closeAfterClaim: true }); }, 1500); }
 }
 $("claimAndReturn").onclick = claimSample;
 $("stayHere").onclick = () => {

@@ -79,6 +79,24 @@ function sampleIdFromScan(value) {
   }
 }
 
+function looksLikeSampleCode(value) {
+  return /^[A-Za-z]{1,3}\d{3,}$/.test(String(value || "").trim());
+}
+
+async function resolveSampleId(value) {
+  const raw = String(value || "").trim();
+  const id = sampleIdFromScan(raw);
+  if (id) return id;
+  if (!raw) return "";
+  const params = new URLSearchParams({ q: raw });
+  const { samples } = await api(`/samples/lookup?${params}`);
+  const exact = (samples || []).find((sample) => sample.sampleCode.toLowerCase() === raw.toLowerCase());
+  if (exact) return exact.id;
+  if ((samples || []).length === 1) return samples[0].id;
+  if ((samples || []).length > 1) throw new Error(`匹配到 ${samples.length} 条，请扫描完整样品号`);
+  return "";
+}
+
 function renderRecords() {
   $("scanRecords").innerHTML = records.length ? records.map((record) => `
     <tr>
@@ -98,17 +116,15 @@ function formatTime(value) {
 
 async function claimByScan(value) {
   if (claiming) return;
-  const sampleId = sampleIdFromScan(value);
+  const raw = String(value || "").trim();
   $("scanInput").value = "";
   focusInput();
-  if (!sampleId) {
-    $("scanMessage").textContent = "未识别到样品 ID";
-    toast(`未识别：${value || "-"}`);
-    return;
-  }
   claiming = true;
-  $("scanMessage").textContent = `正在领用 ${sampleId}…`;
+  $("scanMessage").textContent = `正在识别 ${raw || "-"}…`;
   try {
+    const sampleId = await resolveSampleId(raw);
+    if (!sampleId) throw new Error(`未找到样品：${raw || "-"}`);
+    $("scanMessage").textContent = `正在领用 ${sampleId}…`;
     await api(`/samples/${sampleId}/claim`, { method: "POST", body: "{}" });
     const { sample } = await api(`/samples/${sampleId}`);
     $("scanMessage").textContent = `${sample.sampleCode} 已领用`;
@@ -134,7 +150,7 @@ $("scanInput").addEventListener("input", () => {
   clearTimeout(scanTimer);
   scanTimer = setTimeout(() => {
     const value = $("scanInput").value.trim();
-    if (sampleIdFromScan(value)) claimByScan(value);
+    if (sampleIdFromScan(value) || looksLikeSampleCode(value)) claimByScan(value);
   }, 250);
 });
 
