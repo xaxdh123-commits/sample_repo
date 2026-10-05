@@ -18,8 +18,19 @@
       <div id="detailImages" class="detail-images"></div>
     </section>
     <section class="panel"><h2>操作记录</h2><div id="detailTimeline" class="timeline"></div></section>
-    <div class="claim-bar"><span id="autoClaimMessage"></span><button id="stayHere" type="button" class="danger" hidden>停留本页</button><button id="claimAndReturn" type="button">领用</button></div>
+    <div class="claim-bar"><span id="autoClaimMessage"></span><button id="stayHere" type="button" class="danger" hidden>停留本页</button><button id="bindPlate" type="button" class="ghost">绑定版号</button><button id="claimAndReturn" type="button">领用</button></div>
   </main>
+  <dialog id="bindPlateDialog">
+    <form id="bindPlateForm" method="dialog">
+      <div class="dialog-head"><h2>绑定版号</h2><button id="closeBindPlate" type="button" class="ghost">关闭</button></div>
+      <div class="plate-origin-row">
+        <span>原版号：<b id="bindPlateCurrent">无</b></span>
+        <button id="movePlateToOrder" type="button" class="ghost" hidden>移至订单号</button>
+      </div>
+      <label class="bind-plate-input">新版号<input id="bindPlateInput" autocomplete="off" placeholder="请输入版号"></label>
+      <div class="dialog-actions"><button type="submit">确认绑定版号</button></div>
+    </form>
+  </dialog>
   <div id="toast" class="toast"></div>
   <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
   <script src="./detail.js"></script>

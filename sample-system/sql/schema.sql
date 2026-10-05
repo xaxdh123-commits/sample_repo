@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS samples (
   UNIQUE KEY uk_samples_code (sample_code),
   UNIQUE KEY uk_samples_legacy_id (legacy_id),
   KEY idx_samples_status_updated (status, updated_at),
+  KEY idx_samples_created_at (created_at),
+  KEY idx_samples_type_status_created (sample_type, status, created_at),
+  KEY idx_samples_holder_status_updated (updated_by_id, status, updated_at),
   CONSTRAINT chk_samples_order_or_plate CHECK (order_number<>'' OR plate_number<>''),
   FULLTEXT KEY ft_samples_search (plate_number, customer_name, store_name, owner_name, owner_phone, note)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -94,6 +97,8 @@ CREATE TABLE IF NOT EXISTS sample_operation_logs (
   operated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
   KEY idx_operation_sample_time (sample_id, operated_at),
+  KEY idx_operation_action_operator_time_sample (action, operator_id, operated_at, sample_id),
+  KEY idx_operation_operator_action_status_time (operator_id, action, to_status, operated_at),
   CONSTRAINT fk_operation_sample FOREIGN KEY (sample_id) REFERENCES samples(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

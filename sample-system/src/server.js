@@ -22,6 +22,23 @@ function sendError(res, status, message) {
   sendJson(res, status, { error: message });
 }
 
+async function createSessionFromUpstreamCookie(req) {
+  const upstream = auth.currentUpstreamToken(req);
+  if (!upstream) return null;
+  try {
+    const user = await auth.exchangeUpstreamToken(upstream);
+    const session = await auth.createSession(user);
+    const maxAge = Math.floor(config.sessionTtlMs / 1000);
+    return {
+      user,
+      cookies: [auth.cookie(session.token, maxAge), auth.erpCookie(upstream, maxAge)]
+    };
+  } catch (error) {
+    if (error.status === 401) return null;
+    throw error;
+  }
+}
+
 function bodyJson(req) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -119,7 +136,13 @@ async function requireUser(req, res, permission = "sample:view") {
 function verifyOrigin(req) {
   if (!["POST", "PATCH", "PUT", "DELETE"].includes(req.method)) return true;
   const origin = req.headers.origin;
-  return !origin || origin === config.appOrigin;
+  if (!origin || origin === config.appOrigin) return true;
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    return hostname === "qiyinbz.com" || hostname.endsWith(".qiyinbz.com");
+  } catch {
+    return false;
+  }
 }
 
 function chinaTodayRange(now = new Date()) {
@@ -196,7 +219,7 @@ async function sampleCounts(url, res) {
             COALESCE(SUM(status<>'draft' AND sample_type='packaging'${libraryStatusSql}),0) packaging_library_count,
             COALESCE(SUM(status<>'draft'${libraryStatusSql}),0) library_count
        FROM samples s ${where}`,
-      [...params, ...statusParams]
+      [...statusParams, ...params]
     );
     return row;
   };
@@ -287,7 +310,7 @@ async function serveSampleQr(res, id, autoClaim) {
   const target = new URL(`${config.basePath}/detail.html`, config.appOrigin);
   target.searchParams.set("id", id);
   if (autoClaim) target.searchParams.set("autoClaim", "true");
-  const png = await QRCode.toBuffer(target.href, { type: "png", errorCorrectionLevel: "L", margin: 0, width: 320 });
+  const png = await QRCode.toBuffer(target.href, { type: "png", errorCorrectionLevel: "M", margin: 4, width: 512 });
   res.writeHead(200, { "Content-Type": "image/png", "Content-Length": png.length, "Cache-Control": "private, max-age=3600" });
   res.end(png);
 }
@@ -828,6 +851,15 @@ const server = http.createServer(async (req, res) => {
     if (!isAsset) {
       const user = await auth.currentUser(req);
       if (!user && !url.searchParams.has("token")) {
+        const session = await createSessionFromUpstreamCookie(req);
+        if (session) {
+          res.writeHead(302, {
+            Location: `${url.pathname}${url.search}`,
+            "Cache-Control": "no-store",
+            "Set-Cookie": session.cookies
+          });
+          return res.end();
+        }
         res.writeHead(302, { Location: auth.loginRedirect(req), "Cache-Control": "no-store" });
         return res.end();
       }

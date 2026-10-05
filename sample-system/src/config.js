@@ -33,7 +33,7 @@ module.exports = {
     connectionLimit: intEnv("MYSQL_CONNECTION_LIMIT", 10),
     charset: "utf8mb4"
   },
-  ssoLoginUrl: process.env.SSO_LOGIN_URL || "https://auth.qiyinbz.com/",
+  ssoLoginUrl: process.env.SSO_LOGIN_URL || "https://admin.qiyinbz.com/auth/",
   ssoUserInfoUrl: process.env.SSO_USERINFO_URL || "https://private.qiyinbz.com:41287/permission-api/getInfoV2",
   erpShopUrl: process.env.ERP_SHOP_URL || "https://private.qiyinbz.com:41287/erp-api/shop/getErpShopList",
   sessionTtlMs: intEnv("SESSION_TTL_HOURS", 8) * 60 * 60 * 1000,

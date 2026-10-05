@@ -5,6 +5,7 @@ const { permissionGranted } = require("./domain");
 
 const COOKIE_NAME = "sample_session";
 const ERP_TOKEN_COOKIE_NAME = "sample_erp_token";
+const UPSTREAM_TOKEN_COOKIE_NAME = "Admin-Token";
 const DEFAULT_SAMPLE_PERMISSIONS = ["sample:view", "sample:edit"];
 
 function parseCookies(req) {
@@ -139,6 +140,10 @@ function currentErpToken(req) {
   return readCookie(req, ERP_TOKEN_COOKIE_NAME);
 }
 
+function currentUpstreamToken(req) {
+  return readCookie(req, UPSTREAM_TOKEN_COOKIE_NAME);
+}
+
 function loginRedirect(req) {
   const host = req.headers.host;
   const protocol = config.trustProxy ? String(req.headers["x-forwarded-proto"] || "https").split(",")[0] : "https";
@@ -156,6 +161,7 @@ function hasPermission(user, permission) {
 module.exports = {
   COOKIE_NAME,
   ERP_TOKEN_COOKIE_NAME,
+  UPSTREAM_TOKEN_COOKIE_NAME,
   cookie,
   erpCookie,
   exchangeUpstreamToken,
@@ -163,6 +169,7 @@ module.exports = {
   createSession,
   currentUser,
   currentErpToken,
+  currentUpstreamToken,
   deleteSession,
   loginRedirect,
   hasPermission

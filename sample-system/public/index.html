@@ -47,7 +47,7 @@
           <label class="span-3">备注<input name="packagingNote"></label>
         </div>
         <div class="wide image-field" id="imageDropZone"><label>样品图片<input id="sampleImages" type="file" accept="image/*" multiple></label><div id="imagePreview" class="muted">选择、拍照、拖入或粘贴图片（最多 12 张）</div><button type="button" id="pasteImages" class="ghost">粘贴图片</button><button type="button" id="clearImages" class="ghost">清除图片</button></div>
-        <div class="wide print-settings label-fields"><label>纸宽 mm<input id="printWidth" type="number" min="20" max="200" step="0.1" value="60"></label><label>纸高 mm<input id="printHeight" type="number" min="15" max="150" step="0.1" value="40"></label><label>内容倍率<input id="printScale" type="number" min="1" max="2.5" step="0.1" value="1"></label><button type="button" id="savePrintSize" class="ghost">保存规格</button></div>
+        <div class="wide print-settings label-fields"><label>纸宽 mm<input id="printWidth" type="number" min="20" max="200" step="0.1" value="75" readonly></label><label>纸高 mm<input id="printHeight" type="number" min="15" max="150" step="0.1" value="124" readonly></label><label>内容倍率<input id="printScale" type="number" min="1" max="2.5" step="0.1" value="1"></label><button type="button" id="savePrintSize" class="ghost">保存规格</button></div>
         <div class="wide actions"><button type="submit">保存草稿</button><button type="button" id="saveAndPrint">直接打印</button><button type="button" id="clearForm" class="ghost">清空</button><span id="createMessage"></span></div>
       </form>
     </section>

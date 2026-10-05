@@ -4,11 +4,15 @@ const $ = (id) => document.getElementById(id);
 const labels = { draft: "草稿", printed: "打印", claimed: "领用", sent: "寄出", completed: "入库", void: "作废" };
 const actionLabels = { create: "创建", update: "修改", status_change: "状态变更", print: "打印", reprint: "补打", image_add: "添加图片", image_delete: "删除图片", legacy_import: "历史导入" };
 let sample = null; let samples = []; let claiming = false; let autoClaimTimer = null;
-let currentUser = null;
+let currentUser = null; let canEdit = false;
 
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function toast(message) { $("toast").textContent = message; $("toast").classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => $("toast").classList.remove("show"), 2800); }
 function formatTime(value) { return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : ""; }
+function has(permission) {
+  const permissions = currentUser?.permissions || [];
+  return permissions.includes("*:*:*") || permissions.includes(permission) || (permission === "sample:view" && (permissions.includes("sample:edit") || permissions.includes("sample:admin"))) || (permission === "sample:edit" && permissions.includes("sample:admin"));
+}
 async function api(path, options = {}) {
   const response = await fetch(`${apiBase}/api${path}`, { credentials: "same-origin", headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
   const data = await response.json().catch(() => ({}));
@@ -19,6 +23,7 @@ async function initializeAuth() {
   const url = new URL(location.href); const token = url.searchParams.get("token") || url.searchParams.get("Admin-Token");
   if (token) { await api("/auth/exchange", { method: "POST", body: JSON.stringify({ token }) }); url.searchParams.delete("token"); url.searchParams.delete("Admin-Token"); history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`); }
   const { user } = await api("/me"); currentUser = user; $("userName").textContent = `${user.displayName}（${user.username}）`;
+  canEdit = has("sample:edit");
   loadCurrentHoldingCount().catch(() => {});
 }
 async function loadCurrentHoldingCount() {
@@ -31,6 +36,8 @@ function setClaimState() {
   const disabled = !sample || ["sent", "completed", "void"].includes(sample.status);
   $("claimAndReturn").disabled = disabled;
   $("claimAndReturn").textContent = sample && disabled ? `${labels[sample.status]}状态不可领用` : "领用";
+  $("bindPlate").hidden = !canEdit;
+  $("bindPlate").disabled = !sample || ["completed", "void"].includes(sample.status);
 }
 function renderTabs() {
   $("sampleTabs").hidden = samples.length <= 1;
@@ -59,9 +66,46 @@ async function selectSample(nextSample) {
   $("detailSubtitle").textContent = sample.sampleType === "packaging" ? "包装样品" : "标签样品";
   $("detailStatus").innerHTML = `<span class="badge ${sample.status}">${labels[sample.status]}</span>`;
   $("detailContent").innerHTML = `<dl><dt>版号</dt><dd>${escapeHtml(sample.plateNumber || "-")}</dd><dt>客户名/ID</dt><dd>${escapeHtml(sample.customerName || "-")}</dd><dt>订单编号</dt><dd>${escapeHtml(sample.orderNumber || "-")}</dd><dt>店铺</dt><dd>${escapeHtml(sample.storeName)}</dd><dt>店铺管理员</dt><dd>${escapeHtml(sample.ownerName)} ${escapeHtml(sample.ownerPhone)}</dd><dt>样品类别</dt><dd>${escapeHtml(sample.sampleCategories.join("、") || "-")}</dd><dt>改动项目</dt><dd>${escapeHtml(changes)}</dd><dt>内容</dt><dd>${escapeHtml(sample.sampleContent || "-")}</dd><dt>规格</dt><dd>${escapeHtml(sample.sampleSpecification || "-")}</dd><dt>颜色</dt><dd>${escapeHtml(sample.sampleColor || "-")}</dd><dt>备注</dt><dd>${escapeHtml(sample.note || "-")}</dd><dt>创建人</dt><dd>${escapeHtml(sample.createdByName)} ${escapeHtml(sample.createdByPhone || "")}</dd><dt>创建时间</dt><dd>${formatTime(sample.createdAt)}</dd><dt>最后更新</dt><dd>${escapeHtml(sample.updatedByName)} · ${formatTime(sample.updatedAt)}</dd></dl>`;
-  $("detailImages").innerHTML = sample.imageIds.map((id) => `<a href="${apiBase}/api/images/${id}" target="_blank"><img src="${apiBase}/api/images/${id}" alt="样品图片"></a>`).join("") || `<span class="muted">暂无图片</span>`;
+  $("detailImages").innerHTML = sample.imageIds.map((id) => `<a href="${apiBase}/api/images/${id}" target="_blank"><img src="${apiBase}/api/images/${id}" loading="lazy" decoding="async" fetchpriority="low" width="120" height="120" alt="样品图片"></a>`).join("") || `<span class="muted">暂无图片</span>`;
   setClaimState();
   await renderOperations();
+}
+async function reloadCurrentSample() {
+  if (!sample) return;
+  const data = await api(`/samples/${sample.id}`);
+  const index = samples.findIndex((item) => item.id === data.sample.id);
+  if (index >= 0) samples[index] = data.sample;
+  else samples = [data.sample];
+  await selectSample(data.sample);
+}
+function openBindPlateDialog() {
+  if (!sample) return;
+  const current = String(sample.plateNumber || "").trim();
+  $("bindPlateCurrent").textContent = current || "无";
+  $("movePlateToOrder").hidden = !current;
+  $("bindPlateInput").value = "";
+  $("bindPlateDialog").showModal();
+  setTimeout(() => $("bindPlateInput").focus(), 0);
+}
+async function bindPlateNumber() {
+  if (!sample) return;
+  const plateNumber = $("bindPlateInput").value.trim();
+  if (!plateNumber) { toast("请输入版号"); $("bindPlateInput").focus(); return; }
+  await api(`/samples/${sample.id}`, { method: "PATCH", body: JSON.stringify({ plateNumber }) });
+  $("bindPlateDialog").close();
+  toast("版号已绑定");
+  await reloadCurrentSample();
+}
+async function movePlateToOrderNumber() {
+  if (!sample) return;
+  const plateNumber = String(sample.plateNumber || "").trim();
+  if (!plateNumber) return;
+  const orderNumber = String(sample.orderNumber || "").trim();
+  if (orderNumber && orderNumber !== plateNumber && !confirm(`订单号已有“${orderNumber}”，确认改为“${plateNumber}”？`)) return;
+  await api(`/samples/${sample.id}`, { method: "PATCH", body: JSON.stringify({ plateNumber: "", orderNumber: plateNumber }) });
+  $("bindPlateDialog").close();
+  toast("已移至订单号");
+  await reloadCurrentSample();
 }
 function closeDetailPage() {
   if (window.uni?.navigateBack) { window.uni.navigateBack({ delta: 1 }); return; }
@@ -130,6 +174,13 @@ async function load() {
   if (params.get("autoClaim") === "true" && sample && !["sent", "completed", "void"].includes(sample.status)) { await afterRender(); $("stayHere").hidden = false; $("autoClaimMessage").textContent = "1.5 秒后自动领用并关闭"; autoClaimTimer = setTimeout(() => { autoClaimTimer = null; $("stayHere").hidden = true; $("autoClaimMessage").textContent = "正在自动领用…"; claimSample({ closeAfterClaim: true }); }, 1500); }
 }
 $("claimAndReturn").onclick = claimSample;
+$("bindPlate").onclick = openBindPlateDialog;
+$("closeBindPlate").onclick = () => $("bindPlateDialog").close();
+$("bindPlateForm").onsubmit = (event) => {
+  event.preventDefault();
+  bindPlateNumber().catch((error) => toast(error.message));
+};
+$("movePlateToOrder").onclick = () => movePlateToOrderNumber().catch((error) => toast(error.message));
 $("stayHere").onclick = () => {
   if (autoClaimTimer) clearTimeout(autoClaimTimer);
   autoClaimTimer = null;
