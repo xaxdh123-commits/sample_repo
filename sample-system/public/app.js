@@ -3,7 +3,7 @@ const apiBase = base.endsWith(".html") ? base.slice(0, base.lastIndexOf("/")) : 
 const $ = (id) => document.getElementById(id);
 const labels = { draft: "草稿", printed: "打印", claimed: "领用", sent: "寄出", completed: "入库", void: "作废" };
 const actionLabels = { create: "创建", update: "修改", status_change: "状态变更", print: "打印", reprint: "补打", image_add: "添加图片", image_delete: "删除图片", legacy_import: "历史导入" };
-let state = { user: null, samples: [], shops: [], pendingFiles: [], editingSampleId: "", submittingSample: false, listMode: "library", listSampleType: "label", page: 1, pageSize: 20, pages: 1, total: 0, canEdit: false };
+let state = { user: null, samples: [], shops: [], pendingFiles: [], editingSampleId: "", submittingSample: false, selectedPrintIds: new Set(), listMode: "library", listSampleType: "label", page: 1, pageSize: 20, pages: 1, total: 0, canEdit: false };
 
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function toast(message) { $("toast").textContent = message; $("toast").classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => $("toast").classList.remove("show"), 2800); }
@@ -81,7 +81,7 @@ function mobileActionSelect(sample) {
 
 function renderSamples() {
   $("rows").innerHTML = state.samples.length ? state.samples.map((sample) => `<tr class="status-${sample.status}">
-    <td class="sticky-col code-col"><strong>${escapeHtml(sample.sampleCode)}</strong></td><td class="sticky-col image-col">${imageThumb(sample)}</td>
+    <td class="sticky-col code-col"><label class="print-select"><input type="checkbox" data-print-select="${sample.id}" ${state.selectedPrintIds.has(String(sample.id)) ? "checked" : ""} ${!state.canEdit || sample.status === "void" ? "disabled" : ""}><strong>${escapeHtml(sample.sampleCode)}</strong></label></td><td class="sticky-col image-col">${imageThumb(sample)}</td>
     <td>${escapeHtml(sample.plateNumber)}<br><span class="muted">${escapeHtml(sample.customerName)}</span></td>
     <td>${escapeHtml(sample.storeName)}<br><span class="muted">管理员：${escapeHtml(sample.ownerName)} ${escapeHtml(sample.ownerPhone)}</span></td>
     <td>${sample.sampleType === "packaging" ? "包装样品" : "标签样品"}</td>
@@ -93,6 +93,19 @@ function renderSamples() {
   $("pageInfo").textContent = `第 ${state.page} / ${state.pages} 页，共 ${state.total} 条`;
   $("jumpPage").max = state.pages; $("jumpPage").value = state.page;
   $("first").disabled = $("prev").disabled = state.page <= 1; $("next").disabled = $("last").disabled = state.page >= state.pages;
+  updateBatchPrintControls();
+}
+
+function selectedPrintableSamples() {
+  return state.samples.filter((sample) => state.selectedPrintIds.has(String(sample.id)) && state.canEdit && sample.status !== "void");
+}
+
+function updateBatchPrintControls() {
+  const count = selectedPrintableSamples().length;
+  $("batchPrint").textContent = count ? `批量打印 ${count}` : "批量打印";
+  $("batchPrint").disabled = !count;
+  $("clearPrintSelection").disabled = !state.selectedPrintIds.size;
+  $("selectPagePrint").disabled = !state.canEdit || !state.samples.some((sample) => sample.status !== "void");
 }
 
 function hasListSearchCondition() {
@@ -118,6 +131,24 @@ async function runSampleAction(value) {
   }
 }
 
+async function batchPrintSelected() {
+  const samples = selectedPrintableSamples();
+  if (!samples.length) return toast("请先选择要打印的样品");
+  $("batchPrint").disabled = true;
+  $("batchPrint").textContent = "打印中...";
+  try {
+    for (const sample of samples) {
+      await api(`/samples/${sample.id}/${sample.status === "draft" ? "print" : "reprint"}`, { method: "POST", body: "{}" });
+    }
+    await renderPrintBatch(samples);
+    state.selectedPrintIds.clear();
+    await loadSamples();
+  } catch (error) {
+    toast(error.message);
+    updateBatchPrintControls();
+  }
+}
+
 async function loadSamples() {
   clearDateForSearchCondition();
   const params = new URLSearchParams({ page: state.page, pageSize: state.pageSize, scope: state.listMode });
@@ -126,7 +157,10 @@ async function loadSamples() {
   if ($("status").value) params.set("status", $("status").value);
   if ($("createdDate").value) params.set("createdDate", $("createdDate").value);
   const data = await api(`/samples?${params}`);
-  Object.assign(state, { samples: data.samples, total: data.total }); renderSamples(); loadSampleCounts().catch(() => {});
+  Object.assign(state, { samples: data.samples, total: data.total });
+  const printableIds = new Set(state.samples.filter((sample) => sample.status !== "void").map((sample) => String(sample.id)));
+  state.selectedPrintIds = new Set([...state.selectedPrintIds].filter((id) => printableIds.has(id)));
+  renderSamples(); loadSampleCounts().catch(() => {});
 }
 
 async function loadSampleCounts() {
@@ -238,28 +272,36 @@ function barcodeSvg(value) {
   return `<svg class="sample-barcode" viewBox="0 0 ${width} 32" preserveAspectRatio="none" aria-label="${escapeHtml(text)}">${bars.join("")}</svg>`;
 }
 
-async function renderPrint(sample) {
-  const packaging = sample.sampleType === "packaging"; const width = 75; const height = 124; const scale = packaging ? 1 : (Number($("printScale").value) || 1);
-  document.documentElement.style.setProperty("--print-width", `${width}mm`); document.documentElement.style.setProperty("--print-height", `${height}mm`); document.documentElement.style.setProperty("--print-scale", scale);
+function printArticle(sample) {
+  const packaging = sample.sampleType === "packaging";
   const qrSize = packaging ? "20mm" : "56mm";
-  const qr = `<img id="printQr" class="label-qr" style="width:${qrSize}!important;height:${qrSize}!important;display:block!important;object-fit:contain!important;background:#fff!important" src="${apiBase}/api/samples/${sample.id}/qrcode?autoClaim=true&v=9&t=${Date.now()}" alt="领用二维码">`;
+  const qr = `<img class="label-qr" style="width:${qrSize}!important;height:${qrSize}!important;display:block!important;object-fit:contain!important;background:#fff!important" src="${apiBase}/api/samples/${sample.id}/qrcode?autoClaim=true&v=9&t=${Date.now()}" alt="领用二维码">`;
   const barcode = barcodeSvg(sample.sampleCode);
   if (packaging) {
     const checkBox = (checked) => `<span class="print-check">${checked ? "☑" : "□"}</span>`;
     const category = (name, aliases = []) => `${checkBox([name, ...aliases].some((item) => sample.sampleCategories.includes(item)))}${name}`;
     const yesNo = (yes) => `${checkBox(yes)}是　${checkBox(!yes)}否`;
     const categories = [["彩盒类"], ["纸卡类"], ["十五栋印刷厂", ["十五懂印刷厂"]], ["纸袋"], ["色样"], ["礼盒"], ["内衬"], ["迈高礼盒厂"]];
-    $("printArea").innerHTML = `<article class="label packaging-label print-full-packaging"><div class="packaging-head"><strong><span>${escapeHtml(sample.sampleCode)}</span>${barcode}</strong>${qr}</div><div class="form-line top-qr-line"><b>客人 ID：</b><span>${escapeHtml(sample.customerName)}</span></div><div class="form-line top-qr-line"><b>订单编号：</b><span>${escapeHtml(sample.orderNumber || "")}</span></div><div class="form-line"><b>店铺名称：</b><span>${escapeHtml(sample.storeName)}</span></div><div class="form-line"><b>管理员：</b><span>${escapeHtml(sample.ownerName)}　${escapeHtml(sample.ownerPhone)}</span></div><div class="form-line"><b>创建人：</b><span>${escapeHtml(sample.createdByName)}　${escapeHtml(sample.createdByPhone || "")}</span></div><div class="package-options">${categories.map(([name, aliases]) => `<span>${category(name, aliases)}</span>`).join("")}</div><div class="change-options"><span>内容改动 ${yesNo(sample.contentChanged)}</span><span>颜色改动 ${yesNo(sample.colorChanged)}</span><span>规格改动 ${yesNo(sample.specificationChanged)}</span><span>盒型改动 ${yesNo(sample.boxTypeChanged)}</span></div><div class="writing-block"><b>内容：</b><span>${escapeHtml(sample.sampleContent || "")}</span></div><div class="writing-block"><b>规格：</b><span>${escapeHtml(sample.sampleSpecification || "")}</span></div><div class="writing-block"><b>颜色：</b><span>${escapeHtml(sample.sampleColor || "")}</span></div><div class="writing-block"><b>备注：</b><span>${escapeHtml(sample.note || "")}</span></div></article>`;
-  } else {
-    $("printArea").innerHTML = `<article class="label print-full-label"><div class="label-number-row"><div class="label-number"><span>${escapeHtml(sample.sampleCode)}</span>${barcode}</div>${qr}</div><div class="label-details"><div class="label-line label-line-plate"><b>版号：</b><span>${escapeHtml(sample.plateNumber)}</span></div><div class="label-line"><b>客户：</b><span>${escapeHtml(sample.customerName)}</span></div><div class="label-line label-store wide"><b>店铺：</b><span>${escapeHtml(sample.storeName)}</span></div><div class="label-line label-owner wide"><b>管理员：</b><span>${escapeHtml(sample.ownerName)}</span></div><div class="label-line label-phone"><b>电话：</b><span>${escapeHtml(sample.ownerPhone)}</span></div><div class="label-line"><b>日期：</b><span>${new Date().toLocaleDateString("zh-CN")}</span></div><div class="label-line label-note wide"><b>备注：</b><span>${escapeHtml(sample.note || "-")}</span></div></div></article>`;
+    return `<article class="label packaging-label print-full-packaging"><div class="packaging-head"><strong><span>${escapeHtml(sample.sampleCode)}</span>${barcode}</strong>${qr}</div><div class="form-line top-qr-line"><b>客人 ID：</b><span>${escapeHtml(sample.customerName)}</span></div><div class="form-line top-qr-line"><b>订单编号：</b><span>${escapeHtml(sample.orderNumber || "")}</span></div><div class="form-line"><b>店铺名称：</b><span>${escapeHtml(sample.storeName)}</span></div><div class="form-line"><b>管理员：</b><span>${escapeHtml(sample.ownerName)}　${escapeHtml(sample.ownerPhone)}</span></div><div class="form-line"><b>创建人：</b><span>${escapeHtml(sample.createdByName)}　${escapeHtml(sample.createdByPhone || "")}</span></div><div class="package-options">${categories.map(([name, aliases]) => `<span>${category(name, aliases)}</span>`).join("")}</div><div class="change-options"><span>内容改动 ${yesNo(sample.contentChanged)}</span><span>颜色改动 ${yesNo(sample.colorChanged)}</span><span>规格改动 ${yesNo(sample.specificationChanged)}</span><span>盒型改动 ${yesNo(sample.boxTypeChanged)}</span></div><div class="writing-block"><b>内容：</b><span>${escapeHtml(sample.sampleContent || "")}</span></div><div class="writing-block"><b>规格：</b><span>${escapeHtml(sample.sampleSpecification || "")}</span></div><div class="writing-block"><b>颜色：</b><span>${escapeHtml(sample.sampleColor || "")}</span></div><div class="writing-block"><b>备注：</b><span>${escapeHtml(sample.note || "")}</span></div></article>`;
   }
+  return `<article class="label print-full-label"><div class="label-number-row"><div class="label-number"><span>${escapeHtml(sample.sampleCode)}</span>${barcode}</div>${qr}</div><div class="label-details"><div class="label-line label-line-plate"><b>版号：</b><span>${escapeHtml(sample.plateNumber)}</span></div><div class="label-line"><b>客户：</b><span>${escapeHtml(sample.customerName)}</span></div><div class="label-line label-store wide"><b>店铺：</b><span>${escapeHtml(sample.storeName)}</span></div><div class="label-line label-owner wide"><b>管理员：</b><span>${escapeHtml(sample.ownerName)}</span></div><div class="label-line label-phone"><b>电话：</b><span>${escapeHtml(sample.ownerPhone)}</span></div><div class="label-line"><b>日期：</b><span>${new Date().toLocaleDateString("zh-CN")}</span></div><div class="label-line label-note wide"><b>备注：</b><span>${escapeHtml(sample.note || "-")}</span></div></div></article>`;
+}
+
+async function renderPrintBatch(samples) {
+  const width = 75; const height = 124; const scale = Number($("printScale").value) || 1;
+  document.documentElement.style.setProperty("--print-width", `${width}mm`); document.documentElement.style.setProperty("--print-height", `${height}mm`); document.documentElement.style.setProperty("--print-scale", scale);
+  $("printArea").innerHTML = samples.map(printArticle).join("");
   applyPrintTextFit();
-  const image = $("printQr");
-  await new Promise((resolve) => { if (image.complete) resolve(); else { image.onload = resolve; image.onerror = resolve; } });
-  if (image.decode) await image.decode().catch(() => {});
+  const images = [...document.querySelectorAll("#printArea .label-qr")];
+  await Promise.all(images.map((image) => new Promise((resolve) => { if (image.complete) resolve(); else { image.onload = resolve; image.onerror = resolve; } })));
+  await Promise.all(images.map((image) => image.decode ? image.decode().catch(() => {}) : Promise.resolve()));
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   await new Promise((resolve) => setTimeout(resolve, 250));
   window.print();
+}
+
+async function renderPrint(sample) {
+  return renderPrintBatch([sample]);
 }
 
 function fitFontValue(length, wide) {
@@ -430,8 +472,11 @@ $("clearImages").onclick = () => { state.pendingFiles = []; $("sampleImages").va
 $("clearForm").onclick = resetSampleForm;
 $("saveAndPrint").onclick = () => submitSample(true);
 $("savePrintSize").onclick = () => { localStorage.setItem("samplePrintSettings", JSON.stringify({ scale: $("printScale").value })); $("printWidth").value = 75; $("printHeight").value = 124; toast("打印规格已保存"); };
+$("selectPagePrint").onclick = () => { state.samples.forEach((sample) => { if (state.canEdit && sample.status !== "void") state.selectedPrintIds.add(String(sample.id)); }); renderSamples(); };
+$("clearPrintSelection").onclick = () => { state.selectedPrintIds.clear(); renderSamples(); };
+$("batchPrint").onclick = () => batchPrintSelected();
 $("rows").addEventListener("click", async (event) => { try { const image = event.target.closest("[data-image]"); if (image) { $("largeImage").src = `${apiBase}/api/images/${image.dataset.image}`; return $("imageDialog").showModal(); } const detail = event.target.closest("[data-detail]"); if (detail) { location.href = `./detail.html?id=${encodeURIComponent(detail.dataset.detail)}`; return; } const edit = event.target.closest("[data-edit]"); if (edit) return editDraft(edit.dataset.edit); const status = event.target.closest("[data-status]"); if (status) return changeStatus(status.dataset.status, status.dataset.next); const print = event.target.closest("[data-print]"); if (print) { const sample = state.samples.find((s) => s.id === print.dataset.print); await api(`/samples/${sample.id}/${sample.status === "draft" ? "print" : "reprint"}`, { method: "POST", body: "{}" }); await renderPrint(sample); await loadSamples(); } } catch (e) { toast(e.message); } });
-$("rows").addEventListener("change", async (event) => { const select = event.target.closest("[data-mobile-action]"); if (!select) return; try { await runSampleAction(select.value); } catch (error) { toast(error.message); } finally { select.value = ""; } });
+$("rows").addEventListener("change", async (event) => { const checkbox = event.target.closest("[data-print-select]"); if (checkbox) { if (checkbox.checked) state.selectedPrintIds.add(String(checkbox.dataset.printSelect)); else state.selectedPrintIds.delete(String(checkbox.dataset.printSelect)); updateBatchPrintControls(); return; } const select = event.target.closest("[data-mobile-action]"); if (!select) return; try { await runSampleAction(select.value); } catch (error) { toast(error.message); } finally { select.value = ""; } });
 $("search").onclick = () => { state.page = 1; loadSamples().catch((e) => toast(e.message)); }; $("refresh").onclick = () => loadSamples().catch((e) => toast(e.message));
 $("clearDate").onclick = () => { $("createdDate").value = ""; state.page = 1; loadSamples().catch((e) => toast(e.message)); };
 $("query").addEventListener("keydown", (e) => { if (e.key === "Enter") $("search").click(); });
